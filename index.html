@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="一个关注长期价值、稳定关系与短期诱惑控制的自我观察测验。">
+  <title>心理价值测验</title>
+  <style>
+    :root { color-scheme: light; --ink:#20252f; --muted:#687080; --paper:rgba(255,255,255,.86); --line:rgba(44,57,79,.12); --brand:#6267d9; --brand-dark:#484db5; --brand-soft:#eeefff; --coral:#ef7c72; --shadow:0 24px 70px rgba(50,55,100,.12); --radius-xl:30px; --radius-lg:22px; --radius-md:16px; }
+    * { box-sizing:border-box; }
+    html { scroll-behavior:smooth; }
+    body { margin:0; min-width:320px; color:var(--ink); background:radial-gradient(circle at 9% 7%,rgba(255,210,198,.72),transparent 30rem),radial-gradient(circle at 90% 15%,rgba(195,202,255,.78),transparent 34rem),linear-gradient(145deg,#fff9f6 0%,#f4f5ff 55%,#f8f3ff 100%); font-family:Inter,"PingFang SC","Microsoft YaHei",system-ui,-apple-system,sans-serif; line-height:1.6; }
+    button,input { font:inherit; }
+    button { -webkit-tap-highlight-color:transparent; }
+    .page-shell { width:min(1120px,calc(100% - 32px)); margin:0 auto; padding:32px 0 56px; }
+    .hero { position:relative; overflow:hidden; display:grid; grid-template-columns:minmax(0,1.35fr) minmax(250px,.65fr); gap:28px; padding:clamp(28px,5vw,54px); border:1px solid rgba(255,255,255,.7); border-radius:var(--radius-xl); background:linear-gradient(135deg,rgba(255,255,255,.92),rgba(255,255,255,.66)); box-shadow:var(--shadow); backdrop-filter:blur(18px); }
+    .hero::after { position:absolute; right:-80px; bottom:-110px; width:290px; height:290px; border:52px solid rgba(98,103,217,.08); border-radius:50%; content:""; }
+    .eyebrow { display:inline-flex; align-items:center; gap:8px; margin:0 0 10px; color:var(--brand-dark); font-size:.84rem; font-weight:800; letter-spacing:.13em; text-transform:uppercase; }
+    .eyebrow::before { width:28px; height:2px; border-radius:2px; background:var(--coral); content:""; }
+    h1,h2,h3,p { margin-top:0; }
+    h1 { max-width:720px; margin-bottom:18px; font-size:clamp(2.35rem,7vw,5.3rem); font-weight:850; letter-spacing:-.055em; line-height:1.02; }
+    .hero-copy { position:relative; z-index:1; }
+    .hero-copy>p { max-width:650px; margin-bottom:25px; color:var(--muted); font-size:clamp(1rem,2vw,1.13rem); }
+    .hero-tags { display:flex; flex-wrap:wrap; gap:10px; }
+    .tag { padding:7px 12px; border:1px solid rgba(98,103,217,.17); border-radius:999px; color:#5055aa; background:rgba(238,239,255,.78); font-size:.83rem; font-weight:700; }
+    .score-preview { position:relative; z-index:1; align-self:center; padding:24px; border:1px solid rgba(98,103,217,.12); border-radius:var(--radius-lg); background:rgba(247,247,255,.82); }
+    .score-preview .label { color:var(--muted); font-size:.82rem; font-weight:700; letter-spacing:.08em; }
+    .score-number { display:flex; align-items:baseline; gap:7px; margin:6px 0 5px; }
+    .score-number strong { color:var(--brand-dark); font-size:clamp(3.2rem,8vw,5.2rem); letter-spacing:-.07em; line-height:1; }
+    .score-number span { color:var(--muted); font-weight:700; }
+    .progress-meta { display:flex; justify-content:space-between; margin-bottom:8px; color:var(--muted); font-size:.8rem; font-weight:650; }
+    .progress-track { overflow:hidden; height:8px; border-radius:999px; background:#dedff4; }
+    .progress-bar { width:0; height:100%; border-radius:inherit; background:linear-gradient(90deg,var(--coral),var(--brand)); transition:width 180ms ease; }
+    .instructions { display:flex; align-items:center; justify-content:space-between; gap:20px; margin:42px 0 20px; }
+    .instructions h2 { margin-bottom:4px; font-size:clamp(1.45rem,3vw,2rem); letter-spacing:-.025em; }
+    .instructions p { margin-bottom:0; color:var(--muted); }
+    .scale-legend { flex:0 0 auto; display:flex; gap:14px; padding:10px 14px; border:1px solid var(--line); border-radius:999px; background:rgba(255,255,255,.6); color:var(--muted); font-size:.79rem; font-weight:650; }
+    .questions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+    .question-card { display:grid; grid-template-columns:50px minmax(0,1fr) 46px; gap:16px; align-items:center; min-height:152px; padding:22px; border:1px solid rgba(255,255,255,.84); border-radius:var(--radius-lg); background:var(--paper); box-shadow:0 12px 32px rgba(50,55,90,.07); transition:transform 160ms ease,box-shadow 160ms ease,border-color 160ms ease; }
+    .question-card:hover,.question-card:focus-within { border-color:rgba(98,103,217,.28); box-shadow:0 17px 38px rgba(50,55,90,.11); transform:translateY(-2px); }
+    .question-card.is-key { background:linear-gradient(135deg,rgba(255,255,255,.9),rgba(244,243,255,.9)); }
+    .question-index { display:grid; place-items:center; width:46px; height:46px; border-radius:15px; color:var(--brand-dark); background:var(--brand-soft); font-size:.85rem; font-weight:850; }
+    .question-main label { display:block; min-height:51px; margin-bottom:16px; font-size:.96rem; font-weight:700; line-height:1.55; }
+    .slider-row { display:grid; grid-template-columns:20px minmax(0,1fr) 20px; gap:8px; align-items:center; color:#9298a6; font-size:.74rem; font-weight:750; }
+    input[type="range"] { width:100%; height:7px; margin:0; border-radius:999px; outline:none; background:linear-gradient(to right,var(--brand) 0%,var(--brand) 44.44%,#dedfea 44.44%,#dedfea 100%); appearance:none; cursor:pointer; }
+    input[type="range"]::-webkit-slider-thumb { width:22px; height:22px; border:4px solid white; border-radius:50%; background:var(--brand); box-shadow:0 3px 10px rgba(72,77,181,.38); appearance:none; }
+    input[type="range"]::-moz-range-thumb { width:15px; height:15px; border:4px solid white; border-radius:50%; background:var(--brand); box-shadow:0 3px 10px rgba(72,77,181,.38); }
+    input[type="range"]:focus-visible { outline:3px solid rgba(98,103,217,.28); outline-offset:5px; }
+    .value-badge { display:grid; place-items:center; width:46px; height:46px; border-radius:50%; color:white; background:linear-gradient(145deg,var(--brand),var(--brand-dark)); box-shadow:0 8px 18px rgba(72,77,181,.24); font-size:1.1rem; font-weight:850; }
+    .actions { position:sticky; z-index:5; bottom:16px; display:flex; justify-content:center; gap:12px; width:fit-content; max-width:calc(100% - 20px); margin:30px auto; padding:10px; border:1px solid rgba(255,255,255,.85); border-radius:999px; background:rgba(255,255,255,.82); box-shadow:0 15px 45px rgba(46,49,85,.16); backdrop-filter:blur(16px); }
+    .button { min-height:48px; padding:0 22px; border:0; border-radius:999px; font-weight:800; cursor:pointer; transition:transform 150ms ease,box-shadow 150ms ease,background 150ms ease; }
+    .button:hover { transform:translateY(-1px); }
+    .button:focus-visible { outline:3px solid rgba(98,103,217,.28); outline-offset:3px; }
+    .button-primary { color:white; background:linear-gradient(135deg,var(--brand),var(--brand-dark)); box-shadow:0 9px 20px rgba(72,77,181,.28); }
+    .button-secondary { color:#5c6170; background:#f0f1f5; }
+    .result { scroll-margin-top:24px; display:none; margin-top:38px; }
+    .result.is-visible { display:block; animation:reveal 360ms ease both; }
+    @keyframes reveal { from { opacity:0; transform:translateY(18px); } }
+    .result-card { position:relative; overflow:hidden; padding:clamp(26px,5vw,48px); border:1px solid rgba(255,255,255,.82); border-radius:var(--radius-xl); color:white; background:linear-gradient(135deg,#373b88,#666bd9); box-shadow:var(--shadow); }
+    .result-card[data-grade="S"] { background:linear-gradient(135deg,#213c68,#4d6fb3); }
+    .result-card[data-grade="A"] { background:linear-gradient(135deg,#355665,#5d8795); }
+    .result-card[data-grade="B"] { background:linear-gradient(135deg,#8a4c57,#d27172); }
+    .result-card[data-grade="C"] { background:linear-gradient(135deg,#5a527b,#8a79ad); }
+    .result-card::after { position:absolute; top:-100px; right:-90px; width:310px; height:310px; border:62px solid rgba(255,255,255,.08); border-radius:50%; content:""; }
+    .result-heading { position:relative; z-index:1; display:flex; align-items:flex-start; justify-content:space-between; gap:30px; margin-bottom:30px; }
+    .result-kicker { margin-bottom:6px; color:rgba(255,255,255,.72); font-size:.82rem; font-weight:800; letter-spacing:.12em; }
+    .result-heading h2 { margin-bottom:10px; font-size:clamp(2rem,5vw,3.5rem); letter-spacing:-.045em; line-height:1.05; }
+    .result-heading p { max-width:680px; margin-bottom:0; color:rgba(255,255,255,.83); }
+    .grade-seal { flex:0 0 auto; display:grid; place-items:center; width:104px; height:104px; border:1px solid rgba(255,255,255,.22); border-radius:50%; background:rgba(255,255,255,.12); box-shadow:inset 0 0 0 9px rgba(255,255,255,.06); font-size:3.3rem; font-weight:900; line-height:1; }
+    .result-grid { position:relative; z-index:1; display:grid; grid-template-columns:.75fr 1.25fr; gap:18px; }
+    .result-panel { padding:21px; border:1px solid rgba(255,255,255,.15); border-radius:var(--radius-md); background:rgba(255,255,255,.09); }
+    .result-panel h3 { margin-bottom:14px; color:rgba(255,255,255,.68); font-size:.77rem; letter-spacing:.12em; text-transform:uppercase; }
+    .key-scores { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+    .key-score { padding:12px; border-radius:12px; background:rgba(255,255,255,.09); }
+    .key-score span { display:block; color:rgba(255,255,255,.68); font-size:.75rem; }
+    .key-score strong { font-size:1.35rem; }
+    .analysis-list { display:grid; gap:9px; margin:0; padding:0; list-style:none; }
+    .analysis-list li { position:relative; padding-left:24px; color:rgba(255,255,255,.9); font-size:.91rem; }
+    .analysis-list li::before { position:absolute; top:.44em; left:2px; width:9px; height:9px; border:2px solid rgba(255,255,255,.76); border-radius:50%; content:""; }
+    .advice { position:relative; z-index:1; margin:18px 0 0; padding:17px 20px; border-left:3px solid rgba(255,255,255,.72); border-radius:0 12px 12px 0; background:rgba(15,18,55,.12); color:rgba(255,255,255,.9); }
+    .rules { margin-top:24px; padding:clamp(24px,4vw,36px); border:1px solid rgba(255,255,255,.82); border-radius:var(--radius-xl); background:rgba(255,255,255,.72); box-shadow:0 14px 42px rgba(50,55,90,.07); }
+    .rules h2 { margin-bottom:5px; font-size:1.35rem; }
+    .rules>p { color:var(--muted); font-size:.9rem; }
+    .rule-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:20px; }
+    .rule { padding:16px; border:1px solid var(--line); border-radius:14px; background:rgba(255,255,255,.66); }
+    .rule strong { display:block; margin-bottom:5px; color:var(--brand-dark); }
+    .rule span { color:var(--muted); font-size:.8rem; line-height:1.5; }
+    footer { padding:30px 12px 0; color:var(--muted); text-align:center; font-size:.78rem; }
+    @media(max-width:820px) { .hero{grid-template-columns:1fr}.score-preview{max-width:420px}.questions{grid-template-columns:1fr}.rule-grid{grid-template-columns:repeat(2,1fr)} }
+    @media(max-width:560px) { .page-shell{width:min(100% - 20px,1120px);padding-top:10px}.hero{padding:27px 22px;border-radius:24px}.instructions{align-items:flex-start;flex-direction:column}.scale-legend{width:100%;justify-content:space-between}.question-card{grid-template-columns:42px minmax(0,1fr);min-height:162px;padding:18px 16px}.question-index{width:40px;height:40px;border-radius:13px}.value-badge{grid-column:1;grid-row:2;width:40px;height:40px;align-self:end}.question-main{grid-column:2;grid-row:1/span 2}.question-main label{min-height:auto}.actions{bottom:9px;gap:7px;width:calc(100% - 4px);max-width:none}.button{flex:1;padding:0 15px;font-size:.88rem}.result-heading{flex-direction:column-reverse}.grade-seal{width:84px;height:84px;font-size:2.7rem}.result-grid{grid-template-columns:1fr}.rule-grid{grid-template-columns:1fr} }
+    @media(prefers-reduced-motion:reduce) { html{scroll-behavior:auto}*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important} }
+  </style>
+</head>
+<body>
+  <main class="page-shell">
+    <section class="hero" aria-labelledby="page-title">
+      <div class="hero-copy">
+        <p class="eyebrow">Value Orientation Check-in</p>
+        <h1 id="page-title">心理价值测验</h1>
+        <p>从长期投入、关系稳定和短期诱惑等角度，完成一次轻量的自我观察。请根据你最近三个月的真实状态作答，而不是理想中的自己。</p>
+        <div class="hero-tags" aria-label="测验特点"><span class="tag">15 道题</span><span class="tag">约 3 分钟</span></div>
+      </div>
+      <aside class="score-preview" aria-label="当前答题状态">
+        <span class="label">当前总分</span><div class="score-number"><strong id="live-total">75</strong><span>/ 150</span></div>
+        <div class="progress-meta"><span id="progress-text">已调整 0 / 15</span><span id="progress-percent">0%</span></div>
+        <div class="progress-track" aria-hidden="true"><div class="progress-bar" id="progress-bar"></div></div>
+      </aside>
+    </section>
+    <section aria-labelledby="questions-title">
+      <div class="instructions"><div><h2 id="questions-title">此刻，你更接近哪一种状态？</h2><p>1 表示非常不符合，10 表示非常符合。所有题目均为正向表述。</p></div><div class="scale-legend" aria-hidden="true"><span>1 · 不符合</span><span>10 · 很符合</span></div></div>
+      <form id="assessment-form"><div class="questions" id="questions"></div><div class="actions"><button class="button button-secondary" type="button" id="reset-button">重新测验</button><button class="button button-primary" type="submit">查看测验结果</button></div></form>
+    </section>
+    <section class="result" id="result" aria-live="polite" aria-labelledby="result-title">
+      <div class="result-card" id="result-card"><div class="result-heading"><div><p class="result-kicker">YOUR CURRENT PATTERN</p><h2 id="result-title"></h2><p id="result-description"></p></div><div class="grade-seal" id="grade-seal" aria-label="测验等级"></div></div><div class="result-grid"><div class="result-panel"><h3>分数快照</h3><div class="key-scores" id="key-scores"></div></div><div class="result-panel"><h3>规则分析</h3><ul class="analysis-list" id="analysis-list"></ul></div></div><p class="advice" id="result-advice"></p></div>
+      <section class="rules" aria-labelledby="rules-title"><h2 id="rules-title">评级规则</h2><p>红线优先判定，其后依次检查 S、A、C。阈值中的“高于”不包含等于。</p><div class="rule-grid"><div class="rule"><strong>S · 核心型</strong><span>总分 &gt; 100，且第 4、13、14、15 题均 ≥ 7。</span></div><div class="rule"><strong>A · 功能型</strong><span>总分 &gt; 80，且第 13、14、15 题均 ≥ 7。</span></div><div class="rule"><strong>B · 体验型</strong><span>第 13、15 题均 &lt; 5，触发一票否决红线。</span></div><div class="rule"><strong>C · 成长型</strong><span>未触发红线，但暂未同时达到 S 或 A 条件。</span></div></div></section>
+    </section>
+    <footer>本测验仅供自我观察与交流，不是经临床验证的心理量表，也不构成心理、医疗或职业诊断。</footer>
+  </main>
+  <script>
+    const questions=["我愿意为重要目标持续投入，即使短期内看不到明显回报。","遇到复杂问题时，我会主动识别并处理真正的核心困难。","我对自己的职业方向有较清晰的判断，并在持续采取行动。","我愿意提供资源、反馈或机会，支持他人获得长期职业发展。","面对压力和变化时，我仍能守住重要目标和基本节奏。","我能区分当下想要的东西与真正对自己有长期价值的东西。","我能够设定清晰边界，同时尊重他人的需要和选择。","做出承诺后，我通常能够稳定、可靠地履行。","发生分歧时，我愿意沟通问题，而不是只追求立刻舒服。","我会从挫折中复盘，并把经验转化为下一步行动。","我能在个人需要、关系责任和长期目标之间保持平衡。","我愿意经营少数重要关系，并为信任付出持续努力。","面对重要选择时，我通常会优先考虑长期价值而非即时满足。","我有能力建立并维持稳定、互相尊重且有边界的关系。","面对强烈吸引、冲动消费或短期刺激时，我通常能保持判断和节制。"];
+    const gradeContent={S:{title:"S级 · 核心型",description:"你的当前状态显示出较均衡的长期投入、问题解决与关系能力，也具备支持共同发展的倾向。",advice:"建议：继续保持长期投入，同时留意高标准带来的负担。稳定并不意味着永远独自解决问题，适时寻求协作也很重要。"},A:{title:"A级 · 功能型",description:"你展现出较好的长期判断、边界意识和稳定关系能力，能够建立具有持续性的连接。",advice:"建议：在稳定关系能力之外，继续加强核心困难处理或职业支持行动，有助于让长期价值更完整地落到现实中。"},B:{title:"B级 · 体验型",description:"第13题与第15题同时低于5分，按照既定规则触发红线，当前更容易受到即时体验或短期吸引的影响。",advice:"建议：重要决定先设置24小时缓冲期，并明确写下短期收益、长期成本和不可接受的底线，再决定是否投入。"},C:{title:"C级 · 成长型",description:"你没有触发体验型红线，但当前分数或关键指标尚未同时满足S级、A级的完整条件。",advice:"建议：一次只选择一个未达标的关键维度练习。把它变成可观察的小行动，比笼统要求自己“全面提升”更有效。"}};
+    const touchedQuestions=new Set(),questionsContainer=document.getElementById("questions"),form=document.getElementById("assessment-form"),resultSection=document.getElementById("result");
+    function sliderFill(value){return((value-1)/9)*100}
+    function paintSlider(slider){const fill=sliderFill(Number(slider.value));slider.style.background=`linear-gradient(to right, var(--brand) 0%, var(--brand) ${fill}%, #dedfea ${fill}%, #dedfea 100%)`}
+    function renderQuestions(){const fragment=document.createDocumentFragment();questions.forEach((question,index)=>{const number=index+1,card=document.createElement("article");card.className=`question-card${[4,13,14,15].includes(number)?" is-key":""}`;card.innerHTML=`<span class="question-index" aria-hidden="true">${String(number).padStart(2,"0")}</span><div class="question-main"><label for="question-${number}">${question}</label><div class="slider-row"><span aria-hidden="true">1</span><input id="question-${number}" name="question-${number}" type="range" min="1" max="10" step="1" value="5" aria-valuetext="5分"><span aria-hidden="true">10</span></div></div><output class="value-badge" for="question-${number}" id="value-${number}">5</output>`;const slider=card.querySelector("input");slider.addEventListener("input",()=>{document.getElementById(`value-${number}`).textContent=slider.value;slider.setAttribute("aria-valuetext",`${slider.value}分`);touchedQuestions.add(number);paintSlider(slider);updateDashboard()});fragment.appendChild(card)});questionsContainer.appendChild(fragment)}
+    function getScores(){return questions.map((_,index)=>{const value=Number(document.getElementById(`question-${index+1}`).value);return Math.min(10,Math.max(1,Math.round(value)))})}
+    function evaluateAssessment(scores){if(!Array.isArray(scores)||scores.length!==15)throw new Error("评分必须包含15个题目。");const normalized=scores.map(score=>Math.min(10,Math.max(1,Math.round(Number(score))))),total=normalized.reduce((sum,score)=>sum+score,0),q4=normalized[3],q13=normalized[12],q14=normalized[13],q15=normalized[14],redLine=q13<5&&q15<5,qualifiesS=total>100&&q4>=7&&q13>=7&&q14>=7&&q15>=7,qualifiesA=total>80&&q13>=7&&q14>=7&&q15>=7;let grade="C";if(redLine)grade="B";else if(qualifiesS)grade="S";else if(qualifiesA)grade="A";return{grade,total,keyScores:{q4,q13,q14,q15},conditions:{redLine,qualifiesS,qualifiesA}}}
+    function updateDashboard(){const total=getScores().reduce((sum,score)=>sum+score,0),adjusted=touchedQuestions.size,percentage=Math.round(adjusted/questions.length*100);document.getElementById("live-total").textContent=total;document.getElementById("progress-text").textContent=`已调整 ${adjusted} / ${questions.length}`;document.getElementById("progress-percent").textContent=`${percentage}%`;document.getElementById("progress-bar").style.width=`${percentage}%`}
+    function buildAnalysis(result){const{grade,total,keyScores}=result,items=[];if(grade==="B"){items.push(`红线已触发：第13题 ${keyScores.q13} 分、第15题 ${keyScores.q15} 分，均低于5分。`);items.push(`红线拥有最高优先级，因此总分 ${total} 分不会改变B级结果。`);return items}items.push("红线未触发：第13题与第15题没有同时低于5分。");if(grade==="S"){items.push(`总分 ${total} 分，高于S级所需的100分。`);items.push("第4、13、14、15题均达到7分，所有S级关键条件已满足。")}else if(grade==="A"){items.push(`总分 ${total} 分，高于A级所需的80分。`);items.push("第13、14、15题均达到7分，稳定关系相关条件已满足。");if(total<=100)items.push("尚未进入S级：总分需要高于100分。");if(keyScores.q4<7)items.push(`尚未进入S级：第4题为 ${keyScores.q4} 分，需要至少7分。`)}else{if(total<=80)items.push(`当前总分 ${total} 分；A级要求总分严格高于80分。`);else items.push(`当前总分 ${total} 分已高于80分，但关键题条件尚未全部满足。`);[13,14,15].forEach(number=>{const value=keyScores[`q${number}`];if(value<7)items.push(`第${number}题为 ${value} 分；A/S级均要求至少7分。`)});if(total>100&&keyScores.q4<7)items.push(`第4题为 ${keyScores.q4} 分；S级要求至少7分。`)}return items}
+    function displayResult(result){const content=gradeContent[result.grade],resultCard=document.getElementById("result-card");resultCard.dataset.grade=result.grade;document.getElementById("result-title").textContent=content.title;document.getElementById("result-description").textContent=content.description;document.getElementById("grade-seal").textContent=result.grade;document.getElementById("result-advice").textContent=content.advice;document.getElementById("key-scores").innerHTML=`<div class="key-score"><span>总分</span><strong>${result.total} / 150</strong></div><div class="key-score"><span>第4题</span><strong>${result.keyScores.q4} / 10</strong></div><div class="key-score"><span>第13题</span><strong>${result.keyScores.q13} / 10</strong></div><div class="key-score"><span>第14题</span><strong>${result.keyScores.q14} / 10</strong></div><div class="key-score"><span>第15题</span><strong>${result.keyScores.q15} / 10</strong></div>`;const analysisList=document.getElementById("analysis-list");analysisList.innerHTML="";buildAnalysis(result).forEach(text=>{const item=document.createElement("li");item.textContent=text;analysisList.appendChild(item)});resultSection.classList.add("is-visible");requestAnimationFrame(()=>resultSection.scrollIntoView({behavior:"smooth",block:"start"}))}
+    function resetAssessment(){questions.forEach((_,index)=>{const number=index+1,slider=document.getElementById(`question-${number}`);slider.value=5;slider.setAttribute("aria-valuetext","5分");document.getElementById(`value-${number}`).textContent="5";paintSlider(slider)});touchedQuestions.clear();resultSection.classList.remove("is-visible");updateDashboard();window.scrollTo({top:0,behavior:"smooth"})}
+    form.addEventListener("submit",event=>{event.preventDefault();displayResult(evaluateAssessment(getScores()))});document.getElementById("reset-button").addEventListener("click",resetAssessment);renderQuestions();updateDashboard();window.evaluateAssessment=evaluateAssessment;
+  </script>
+</body>
+</html>
