@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="心理价值测验">
+  <title>心理价值测验</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="page-shell">
+    <section class="hero" aria-labelledby="page-title">
+      <div class="hero-copy">
+        <p class="eyebrow" id="eyebrow">Value Orientation Check-in</p>
+        <h1 id="page-title">心理价值测验</h1>
+        <p id="page-description">正在加载测验内容……</p>
+        <div class="hero-tags" aria-label="测验特点">
+          <span class="tag" id="question-count">— 道题</span>
+          <span class="tag" id="time-estimate">约 — 分钟</span>
+        </div>
+      </div>
+
+      <aside class="score-preview" aria-label="当前答题状态">
+        <span class="label">当前总分</span>
+        <div class="score-number">
+          <strong id="live-total">0</strong>
+          <span id="max-total">/ 0</span>
+        </div>
+        <div class="progress-meta">
+          <span id="progress-text">已完成 0 / 0</span>
+          <span id="progress-percent">0%</span>
+        </div>
+        <div class="progress-track" aria-hidden="true">
+          <div class="progress-bar" id="progress-bar"></div>
+        </div>
+      </aside>
+    </section>
+
+    <section aria-labelledby="questions-title">
+      <div class="instructions">
+        <div>
+          <h2 id="questions-title">此刻，你更接近哪一种状态？</h2>
+          <p id="input-instruction">每题请输入1–10的整数，最高10分。</p>
+        </div>
+      </div>
+
+      <div class="notice notice-error" id="form-error" role="alert" tabindex="-1" hidden>
+        请完成所有题目，并确保每题都是1–10的整数。
+      </div>
+      <div class="notice" id="load-error" role="alert" hidden>
+        测验内容暂时无法加载。请检查网络后
+        <button type="button" class="text-button" id="retry-button">重新加载</button>。
+      </div>
+
+      <form id="assessment-form" novalidate>
+        <div class="questions" id="questions" aria-live="polite"></div>
+        <div class="actions">
+          <button class="button button-secondary" type="button" id="reset-button">重新测验</button>
+          <button class="button button-primary" type="submit" id="submit-button" disabled>查看测验结果</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="result" id="result" aria-live="polite" aria-labelledby="result-title">
+      <div class="result-card" id="result-card">
+        <div class="result-heading">
+          <div>
+            <p class="result-kicker">YOUR CURRENT PATTERN</p>
+            <h2 id="result-title"></h2>
+            <p id="result-description"></p>
+          </div>
+          <div class="grade-seal" id="grade-seal" aria-label="测验等级"></div>
+        </div>
+        <div class="total-card">
+          <span id="result-total-label">你的总分</span>
+          <strong id="result-total"></strong>
+        </div>
+        <p class="advice" id="result-advice"></p>
+      </div>
+    </section>
+
+    <footer id="disclaimer"></footer>
+  </main>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
