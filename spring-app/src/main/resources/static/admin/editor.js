@@ -480,4 +480,3 @@ window.addEventListener("beforeunload", (event) => {
 });
 
 identity(true).then(user => { if (user) loadAdminConfig(); });
-

@@ -32,7 +32,7 @@ class Startup implements ApplicationRunner {
             var node=engine.parse(Files.readString(Path.of(importFile)));
             // Accept the JSON results emitted by wrangler d1 execute --json.
             if (node.isArray() && node.size()==1) node=node.get(0);
-            if (node.has("results")) node=node.path("results").get(0);
+            if (node.has("results") && !node.has("questions")) node=node.path("results").get(0);
             service.importLegacy(node);System.out.println("Legacy configuration imported as a separate assessment.");return;
         }
         if (!command.isBlank()) throw new IllegalArgumentException("Unknown app.command");
