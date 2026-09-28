@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>心理价值测验 · 管理后台</title>
+  <link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body>
+  <header class="admin-header">
+    <div>
+      <p class="eyebrow">ASSESSMENT STUDIO</p>
+      <h1>心理价值测验管理后台</h1>
+      <p>编辑草稿、管理规则，为这一套测验保存独立的发布版本。</p>
+    </div>
+    <a class="public-link" href="/admin/">返回套题工作台 ↗</a>
+  </header>
+
+  <main class="admin-shell">
+    <div class="warning">
+      当前草稿仅管理员可见。每次发布会创建新版本，已有分配与历史记录不受影响。
+    </div>
+    <div class="status-bar">
+      <span id="revision-status">正在加载配置……</span>
+      <span class="save-state" id="save-state">—</span>
+    </div>
+    <div class="message" id="message" role="status" hidden></div>
+
+    <div id="editor" hidden>
+      <section class="panel">
+        <div class="section-heading">
+          <div>
+            <span class="step">01</span>
+            <h2>基础内容</h2>
+          </div>
+        </div>
+        <div class="field-grid">
+          <label>测验名称<input data-site-field="title"></label>
+          <label>英文眉题<input data-site-field="eyebrow"></label>
+          <label class="wide">测验简介<textarea data-site-field="description" rows="3"></textarea></label>
+          <label class="wide">题目区标题<input data-site-field="questionTitle"></label>
+          <label class="wide">统一输入提示<input data-site-field="inputInstruction"></label>
+          <label class="wide">结果页总分标签<input data-site-field="resultTotalLabel"></label>
+          <label class="wide">免责声明<textarea data-site-field="disclaimer" rows="3"></textarea></label>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="section-heading">
+          <div>
+            <span class="step">02</span>
+            <h2>题目管理</h2>
+          </div>
+          <button class="button button-light" type="button" data-action="add-question">＋ 添加题目</button>
+        </div>
+        <p class="hint">题目可自由增删和排序。被评级条件引用的题目，必须先移除相关条件才能删除。</p>
+        <div class="editor-list" id="question-editor"></div>
+      </section>
+
+      <section class="panel">
+        <div class="section-heading">
+          <div>
+            <span class="step">03</span>
+            <h2>结果与评级规则</h2>
+          </div>
+          <button class="button button-light" type="button" data-action="add-result">＋ 添加结果</button>
+        </div>
+        <p class="hint">按从上到下的优先级检查结果。多个条件组之间为“或”；每组内部可选择“且”或“或”。</p>
+        <div class="result-editor" id="result-editor"></div>
+      </section>
+
+      <div class="sticky-actions">
+        <button class="button button-light" type="button" data-action="discard">放弃草稿</button>
+        <button class="button button-light" type="button" data-action="preview">保存并预览</button>
+        <button class="button button-secondary" type="button" data-action="save">保存草稿</button>
+        <button class="button button-primary" type="button" data-action="publish">发布草稿</button>
+      </div>
+    </div>
+  </main>
+  <script type="module" src="/admin/editor.js"></script>
+</body>
+</html>
