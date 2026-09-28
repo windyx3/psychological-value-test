@@ -5,3 +5,7 @@ spring:
     password: ${LOCAL_DB_PASSWORD:}
 server:
   address: 127.0.0.1
+management:
+  health:
+    mail:
+      enabled: false

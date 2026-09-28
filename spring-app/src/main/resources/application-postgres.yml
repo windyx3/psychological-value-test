@@ -5,5 +5,3 @@ spring:
     password: ${DATABASE_PASSWORD}
 server:
   address: 127.0.0.1
-app:
-  mail-mode: smtp

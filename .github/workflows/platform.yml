@@ -1,0 +1,63 @@
+name: Spring Boot platform
+on:
+  push:
+    branches: [feat/spring-boot-platform]
+    paths: ['spring-app/**', '.github/workflows/platform.yml', 'README.md', 'docs/**']
+  pull_request:
+    paths: ['spring-app/**', '.github/workflows/platform.yml', 'README.md', 'docs/**']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    name: Verify (${{ matrix.database }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        database: [h2, postgres]
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: assessment_test
+          POSTGRES_USER: assessment_test
+          POSTGRES_PASSWORD: synthetic-ci-only
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U assessment_test -d assessment_test"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    defaults:
+      run:
+        working-directory: spring-app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Verify with H2
+        if: matrix.database == 'h2'
+        run: ./mvnw -B -ntp verify
+      - name: Verify with PostgreSQL 17
+        if: matrix.database == 'postgres'
+        env:
+          TEST_DATABASE_URL: jdbc:postgresql://localhost:5432/assessment_test
+          TEST_DATABASE_USERNAME: assessment_test
+          TEST_DATABASE_PASSWORD: synthetic-ci-only
+        run: ./mvnw -B -ntp verify
+      - name: Publish executable JAR
+        if: matrix.database == 'h2'
+        uses: actions/upload-artifact@v4
+        with:
+          name: assessment-platform
+          path: spring-app/target/assessment-platform.jar
+          retention-days: 7
+      - name: Publish test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-${{ matrix.database }}
+          path: spring-app/target/surefire-reports/
+          retention-days: 7
