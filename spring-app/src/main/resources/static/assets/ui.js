@@ -12,7 +12,7 @@ export async function api(path, options = {}) {
   if (!response.ok) {
     if (response.status === 403) csrf = null;
     if (response.status === 401 && !path.startsWith('/api/auth/')) location.href = '/auth/';
-    throw Object.assign(new Error(data.error || '请求失败，请稍后重试。'), { status: response.status });
+    throw Object.assign(new Error(data.error || '请求失败，请稍后重试。'), { status: response.status, fieldErrors: data.fieldErrors });
   }
   if (path === '/api/auth/login' || path === '/api/auth/logout') csrf = null;
   return data;

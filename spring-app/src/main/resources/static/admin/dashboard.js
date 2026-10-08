@@ -1,11 +1,33 @@
 import {api,esc,date,notice,run,identity,pager,allPages,recordDetail} from '/assets/ui.js';
 const root=document.getElementById('content');let user,search='';
 const empty=text=>`<div class="empty">${text}</div>`;
+function createSetForm(origin,source){
+  document.getElementById('set-create-panel')?.remove();notice('');
+  const panel=document.createElement('section');panel.id='set-create-panel';panel.className='panel';panel.setAttribute('aria-labelledby','set-create-title');
+  panel.innerHTML=`<h2 id="set-create-title">${source?'复制套题':'新建套题'}</h2><form class="set-create-form" novalidate><label>套题名称<input name="title" required maxlength="200" autocomplete="off"><span id="set-title-error" class="field-error" hidden></span></label><div class="actions"><button type="submit">${source?'创建副本':'创建套题'}</button><button type="button" class="secondary" data-cancel>取消</button></div></form>`;
+  root.querySelector('.section-heading').after(panel);
+  const form=panel.querySelector('form'),input=form.elements.title,hint=panel.querySelector('#set-title-error'),submit=form.querySelector('[type=submit]'),cancel=form.querySelector('[data-cancel]');
+  input.value=source?(source.title+' · 副本').slice(0,200):'';
+  const error=message=>{hint.textContent=message;hint.hidden=!message;if(message){input.setAttribute('aria-invalid','true');input.setAttribute('aria-describedby',hint.id);}else{input.removeAttribute('aria-invalid');input.removeAttribute('aria-describedby');}};
+  input.oninput=()=>error('');
+  cancel.onclick=()=>{panel.remove();notice('');origin.focus();};
+  form.onsubmit=async event=>{
+    event.preventDefault();if(submit.disabled)return;
+    const title=input.value.trim();
+    if(!title||title.length>200){error('请输入1–200字的套题名称，不能只包含空格。');input.focus();return;}
+    error('');notice('');submit.disabled=true;cancel.disabled=true;
+    const triggers=root.querySelectorAll('#new-set,[data-copy]');triggers.forEach(b=>b.disabled=true);
+    try{const created=await api('/api/admin/assessments',{method:'POST',body:{title,...(source?{copyFrom:source.id}:{})}});location.href=`/admin/editor?id=${created.id}`;}
+    catch(e){notice(e.message,true);input.focus();}
+    finally{submit.disabled=false;cancel.disabled=false;triggers.forEach(b=>b.disabled=false);}
+  };
+  input.focus();
+}
 async function sets(page=0){
   const data=await api(`/api/admin/assessments?page=${page}`);
   root.innerHTML=`<section class="hero"><p class="eyebrow">ASSESSMENT STUDIO</p><h1>每一套测验，独立管理。</h1><p class="muted">编辑草稿、发布版本，再分配给指定用户。历史作答始终保留原来的题目与结果。</p></section><div class="section-heading"><h2>套题库 <span class="muted">${data.total}</span></h2><button id="new-set">＋ 新建套题</button></div><div class="grid">${data.items.map(a=>`<article class="card"><span class="tag">${a.archived?'已归档':a.publishedVersion?'已发布 · v'+a.publishedVersion:'尚未发布'}</span><h3>${esc(a.title)}</h3><p class="muted">更新于 ${date(a.updatedAt)}</p><div class="actions"><a class="button small" href="/admin/editor?id=${a.id}">编辑</a><button class="secondary small" data-copy="${a.id}">复制</button><button class="secondary small" data-assign="${a.id}" ${a.archived||!a.publishedVersion?'disabled':''}>分配用户</button><button class="secondary small" data-archive="${a.id}">${a.archived?'恢复':'归档'}</button></div></article>`).join('')}</div>${!data.items.length?empty('点击“新建套题”开始。'):''}`;
-  document.getElementById('new-set').onclick=()=>run(async()=>{const title=prompt('请输入套题名称');if(!title?.trim())return;const a=await api('/api/admin/assessments',{method:'POST',body:{title}});location.href=`/admin/editor?id=${a.id}`;});
-  root.querySelectorAll('[data-copy]').forEach(b=>b.onclick=()=>run(async()=>{const a=data.items.find(x=>x.id===b.dataset.copy),title=prompt('新套题名称',a.title+' · 副本');if(!title?.trim())return;const created=await api('/api/admin/assessments',{method:'POST',body:{title,copyFrom:a.id}});location.href=`/admin/editor?id=${created.id}`;}));
+  document.getElementById('new-set').onclick=e=>createSetForm(e.currentTarget);
+  root.querySelectorAll('[data-copy]').forEach(b=>b.onclick=()=>createSetForm(b,data.items.find(x=>x.id===b.dataset.copy)));
   root.querySelectorAll('[data-archive]').forEach(b=>b.onclick=()=>run(async()=>{const a=data.items.find(x=>x.id===b.dataset.archive);if(!a.archived&&!confirm('归档后将停止分配和提交，历史记录保留。是否继续？'))return;await api(`/api/admin/assessments/${a.id}`,{method:'PATCH',body:{revision:a.revision,archived:!a.archived}});await sets(page);}));
   root.querySelectorAll('[data-assign]').forEach(b=>b.onclick=()=>{location.hash='assign='+b.dataset.assign;});
   if(data.totalPages>1)root.append(pager(data,sets));
