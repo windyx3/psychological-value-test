@@ -5,13 +5,15 @@
   <groupId>com.windy</groupId><artifactId>assessment-platform</artifactId><version>1.0.0</version>
   <name>Psychological Value Assessment Platform</name>
   <description>Versioned assessments, assigned questionnaires and private submission history</description>
-  <properties><java.version>21</java.version></properties>
+  <properties><java.version>21</java.version><aws-sdk.version>2.55.12</aws-sdk.version></properties>
   <dependencies>
     <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-webmvc</artifactId></dependency>
     <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-security</artifactId></dependency>
     <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-data-jpa</artifactId></dependency>
     <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-session-jdbc</artifactId></dependency>
     <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-mail</artifactId></dependency>
+    <dependency><groupId>software.amazon.awssdk</groupId><artifactId>sesv2</artifactId><version>${aws-sdk.version}</version></dependency>
+    <dependency><groupId>software.amazon.awssdk</groupId><artifactId>url-connection-client</artifactId><version>${aws-sdk.version}</version></dependency>
     <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-validation</artifactId></dependency>
     <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-actuator</artifactId></dependency>
     <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-flyway</artifactId></dependency>

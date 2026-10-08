@@ -6,6 +6,9 @@ import java.io.*;
 import java.util.*;
 import org.springframework.context.annotation.*;
 import org.springframework.core.env.Environment;
+import org.springframework.beans.factory.annotation.Value;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -35,7 +38,8 @@ class SecurityConfig {
 
     @Bean @org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication
     SecurityFilterChain chain(HttpSecurity http, AccountRepository accounts, Environment env,
-                                    HttpSessionSecurityContextRepository repository) throws Exception {
+                                    HttpSessionSecurityContextRepository repository,
+                                    @Value("${app.origin-token:}") String originToken) throws Exception {
         http.securityContext(s -> s.securityContextRepository(repository))
             .csrf(csrf -> csrf.csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler()))
             .authorizeHttpRequests(a -> a
@@ -55,6 +59,16 @@ class SecurityConfig {
             .logout(l -> l.logoutUrl("/api/auth/logout").logoutSuccessHandler((req,res,auth) -> {
                 res.setContentType("application/json"); res.getWriter().write("{\"ok\":true}");
             }))
+            .addFilterBefore(new OncePerRequestFilter() {
+                @Override protected void doFilterInternal(HttpServletRequest req,HttpServletResponse res,FilterChain chain) throws ServletException,IOException {
+                    String supplied=req.getHeader("X-Origin-Token");
+                    if (!originToken.isBlank() && !req.getRequestURI().equals("/actuator/health") &&
+                        (supplied==null || !MessageDigest.isEqual(originToken.getBytes(StandardCharsets.UTF_8),supplied.getBytes(StandardCharsets.UTF_8)))) {
+                        error(res,403,"请通过网站的 HTTPS 入口访问。");return;
+                    }
+                    chain.doFilter(req,res);
+                }
+            },SecurityContextHolderFilter.class)
             .addFilterAfter(new OncePerRequestFilter() {
                 @Override protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain) throws ServletException, IOException {
                     res.setHeader("Cache-Control","no-store");

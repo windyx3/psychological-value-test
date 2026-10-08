@@ -47,5 +47,7 @@ management:
 app:
   base-url: ${APP_BASE_URL:http://127.0.0.1:8080}
   mail-mode: ${MAIL_MODE:preview}
+  ses-region: ${SES_REGION:us-east-2}
+  origin-token: ${APP_ORIGIN_TOKEN:}
   mail-from: ${MAIL_FROM:no-reply@example.invalid}
   seed-default: ${SEED_DEFAULT:true}

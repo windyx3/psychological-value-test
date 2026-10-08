@@ -24,7 +24,7 @@ class AuthService {
     }
     static String normalize(String value) {return value.trim().toLowerCase(Locale.ROOT);}
     static void password(String value) {
-        ApiError.require(value!=null && value.length()>=12 && value.getBytes(StandardCharsets.UTF_8).length<=72,400,"密码至少12个字符，UTF-8长度不超过72字节。");
+        ApiError.field(value!=null && value.length()>=12 && value.getBytes(StandardCharsets.UTF_8).length<=72,"password","密码至少12个字符，UTF-8长度不超过72字节（中文等字符通常占多个字节）。");
     }
     static Map<String,Object> view(Account u) {
         return Map.of("id",u.id,"username",u.username,"email",u.email,"wechat",u.wechat,"phone",u.phone,"role",u.role,"verified",u.verified,"enabled",u.enabled,"createdAt",u.createdAt);
@@ -32,7 +32,7 @@ class AuthService {
     @Transactional
     public Map<String,Object> register(AuthController.Registration r) {
         password(r.password());
-        ApiError.require(r.password().equals(r.confirmPassword()),400,"两次密码输入不一致。");
+        ApiError.field(r.password().equals(r.confirmPassword()),"confirmPassword","两次密码输入不一致，请再次输入相同的密码。");
         String username=normalize(r.username()), email=normalize(r.email());
         ApiError.require(!accounts.existsByUsernameOrEmail(username,email),409,"账号或邮箱已被使用。");
         Account u=new Account();u.username=username;u.email=email;u.passwordHash=encoder.encode(r.password());u.wechat=r.wechat().trim();u.phone=r.phone().trim();

@@ -14,11 +14,20 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController @RequestMapping("/api/auth")
 class AuthController {
-    record Registration(@NotBlank @Pattern(regexp="[A-Za-z0-9_-]{3,64}") String username,
-        @NotBlank @jakarta.validation.constraints.Email @Size(max=254) String email,
-        @NotBlank @Size(max=100) String wechat,
-        @NotBlank @Pattern(regexp="[+0-9() -]{6,32}") String phone,
-        @NotBlank @Size(max=72) String password,@NotBlank @Size(max=72) String confirmPassword) {}
+    record Registration(
+        @NotBlank(message="请输入账号：3–64位英文字母、数字、下划线或短横线。")
+        @Pattern(regexp="[A-Za-z0-9_-]{3,64}",message="账号须为3–64位英文字母、数字、下划线或短横线，不含空格。") String username,
+        @NotBlank(message="请输入邮箱，例如 name@example.com。")
+        @jakarta.validation.constraints.Email(message="请输入有效邮箱，例如 name@example.com。")
+        @Size(max=254,message="邮箱不能超过254个字符。") String email,
+        @NotBlank(message="请输入微信号，不能只包含空格。")
+        @Size(max=100,message="微信号不能超过100个字符。") String wechat,
+        @NotBlank(message="请输入手机号，例如 +1 604 555 0123。")
+        @Pattern(regexp="[+0-9() -]{6,32}",message="手机号须为6–32个字符，仅含数字、+、括号、空格或短横线，例如 +1 604 555 0123。") String phone,
+        @NotBlank(message="请输入密码，至少12个字符，UTF-8长度不超过72字节。")
+        @Size(min=12,max=72,message="密码至少12个字符，UTF-8长度不超过72字节。") String password,
+        @NotBlank(message="请再次输入相同的密码。")
+        @Size(max=72,message="确认密码不能超过72个字符，并须与密码一致。") String confirmPassword) {}
     record Login(@NotBlank @Size(max=254) String login,@NotBlank @Size(max=72) String password) {}
     record Email(@NotBlank @jakarta.validation.constraints.Email @Size(max=254) String email) {}
     record Token(@NotBlank @Size(max=100) String token) {}
@@ -60,7 +69,7 @@ class AuthController {
     }
     @PostMapping("/reset-password") Map<String,Boolean> reset(@Valid @RequestBody Reset body,HttpServletRequest req) {
         limiter.check("token:"+req.getRemoteAddr(),20);
-        ApiError.require(body.password().equals(body.confirmPassword()),400,"两次密码输入不一致。");
+        ApiError.field(body.password().equals(body.confirmPassword()),"confirmPassword","两次密码输入不一致，请再次输入相同的密码。");
         service.consume(body.token(),"RESET",body.password());return Map.of("ok",true);
     }
 }

@@ -11,6 +11,10 @@ server:
         secure: true
 app:
   base-url: ${APP_BASE_URL}
-  mail-mode: smtp
+  mail-mode: ${MAIL_MODE:smtp}
   mail-from: ${MAIL_FROM}
   seed-default: false
+management:
+  health:
+    mail:
+      enabled: ${SMTP_HEALTH_ENABLED:true}

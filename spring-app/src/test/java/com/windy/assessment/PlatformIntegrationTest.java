@@ -62,6 +62,22 @@ class PlatformIntegrationTest {
     }
     String submitBody(String assignment,String key,JsonNode answers) {return engine.json(Map.of("assignmentId",assignment,"idempotencyKey",key,"answers",answers));}
 
+    @Test void registrationErrorsIdentifyFieldsWithoutEchoingCredentials() throws Exception {
+        var invalid=Map.of("username","bad name!","email","invalid-email","wechat","   ","phone","123","password","short","confirmPassword","");
+        var response=body(mvc.perform(post("/api/auth/register").with(csrf()).contentType("application/json").content(engine.json(invalid)))
+            .andExpect(status().isBadRequest()).andReturn());
+        for(String name:invalid.keySet()) assertTrue(response.path("fieldErrors").has(name),name);
+        assertTrue(response.path("fieldErrors").path("phone").asText().contains("6–32"));
+        assertFalse(response.toString().contains("short"));
+        assertEquals(0,users.count());
+        var valid=new HashMap<String,String>(Map.of("username","field_test","email","field-test@example.test","wechat","synthetic","phone","+16045550123","password",PASSWORD,"confirmPassword",PASSWORD+"!"));
+        mvc.perform(post("/api/auth/register").with(csrf()).contentType("application/json").content(engine.json(valid)))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.fieldErrors.confirmPassword").isString());
+        valid.put("password","密".repeat(25));valid.put("confirmPassword","密".repeat(25));
+        mvc.perform(post("/api/auth/register").with(csrf()).contentType("application/json").content(engine.json(valid)))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.fieldErrors.password").isString());
+        assertEquals(0,users.count());
+    }
     @Test void registrationVerificationResendAndPasswordReset() throws Exception {
         String name="registration_"+UUID.randomUUID().toString().substring(0,8),email=name+"@example.test";
         var form=Map.of("username",name,"email",email,"wechat","test-contact","phone","+16045550123","password",PASSWORD,"confirmPassword",PASSWORD);
@@ -78,6 +94,30 @@ class PlatformIntegrationTest {
         mvc.perform(post("/api/auth/reset-password").with(csrf()).contentType("application/json").content(engine.json(Map.of("token",reset,"password",PASSWORD+"!","confirmPassword",PASSWORD+"!")))).andExpect(status().isOk());
         mvc.perform(get("/api/me/assignments").cookie(session)).andExpect(status().isUnauthorized());
         mvc.perform(post("/api/auth/register").with(csrf()).contentType("application/json").content(engine.json(form))).andExpect(status().isConflict());
+    }
+    @Test @org.springframework.transaction.annotation.Transactional
+    void smtpFailureKeepsAccountPendingAndResendCanRecover() {
+        var sender=org.mockito.Mockito.mock(org.springframework.mail.javamail.JavaMailSender.class);
+        var environment=new org.springframework.mock.env.MockEnvironment();environment.setActiveProfiles("prod");
+        var smtp=new MailService(sender,environment);smtp.mode="smtp";smtp.baseUrl="https://assessment.example.test";smtp.from="sender@example.test";smtp.validate();
+        var service=new AuthService(users,tokens,encoder,smtp);
+        org.mockito.Mockito.doThrow(new org.springframework.mail.MailSendException("Synthetic transport failure"))
+            .when(sender).send(org.mockito.ArgumentMatchers.any(org.springframework.mail.SimpleMailMessage.class));
+        var form=new AuthController.Registration("smtp_test","smtp-test@example.test","synthetic","+16045550123",PASSWORD,PASSWORD);
+        var result=service.register(form);
+        assertEquals(false,result.get("mailSent"));
+        var account=users.findByUsername("smtp_test").orElseThrow();assertFalse(account.verified);
+        assertEquals(403,assertThrows(ApiError.class,()->service.authenticate(form.username(),PASSWORD)).status);
+        org.mockito.Mockito.doNothing().when(sender).send(org.mockito.ArgumentMatchers.any(org.springframework.mail.SimpleMailMessage.class));
+        service.resend(form.email(),"VERIFY");
+        var messages=org.mockito.ArgumentCaptor.forClass(org.springframework.mail.SimpleMailMessage.class);
+        org.mockito.Mockito.verify(sender,org.mockito.Mockito.times(2)).send(messages.capture());
+        var sent=messages.getValue();assertEquals(form.email(),sent.getTo()[0]);assertEquals(smtp.from,sent.getFrom());
+        assertTrue(sent.getText().contains("https://assessment.example.test/auth/?action=verify#token="));
+        String raw=sent.getText().split("#token=")[1].split("\\n")[0];
+        service.consume(raw,"VERIFY",null);assertTrue(users.findByUsername(form.username()).orElseThrow().verified);
+        assertThrows(ApiError.class,()->service.consume(raw,"VERIFY",null));
+        smtp.mode="preview";assertThrows(IllegalStateException.class,smtp::validate);
     }
     @Test void permissionCsrfAndRoleChanges() throws Exception {
         var admin=account("ADMIN");var u=account("USER");var userSession=login(u);
