@@ -1,0 +1,228 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Psychological value assessment trial - Beanstalk, private PostgreSQL and CloudFront HTTPS
+Parameters:
+  ApplicationName:
+    Type: String
+    Default: psychological-value-test
+  EnvironmentName:
+    Type: String
+    Default: psychological-value-test-trial
+  SolutionStack:
+    Type: String
+  BundleBucket:
+    Type: String
+  BundleKey:
+    Type: String
+  VersionLabel:
+    Type: String
+  SenderEmail:
+    Type: String
+  PublicHostname:
+    Type: String
+    Default: pending.invalid
+  CloudFrontPrefixList:
+    Type: String
+  DatabaseVersion:
+    Type: String
+    Default: '17.11'
+Resources:
+  Network:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.83.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags: [{Key: Project, Value: !Ref ApplicationName}]
+  Gateway:
+    Type: AWS::EC2::InternetGateway
+  GatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties: {VpcId: !Ref Network, InternetGatewayId: !Ref Gateway}
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Network
+      CidrBlock: 10.83.1.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: true
+  PrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Network
+      CidrBlock: 10.83.11.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+  PrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Network
+      CidrBlock: 10.83.12.0/24
+      AvailabilityZone: !Select [1, !GetAZs '']
+  PublicRoutes:
+    Type: AWS::EC2::RouteTable
+    Properties: {VpcId: !Ref Network}
+  InternetRoute:
+    Type: AWS::EC2::Route
+    DependsOn: GatewayAttachment
+    Properties: {RouteTableId: !Ref PublicRoutes, DestinationCidrBlock: 0.0.0.0/0, GatewayId: !Ref Gateway}
+  PublicRouteAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: {SubnetId: !Ref PublicSubnet, RouteTableId: !Ref PublicRoutes}
+  AppSecurity:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref Network
+      GroupDescription: CloudFront HTTP origin and private database connectivity
+      SecurityGroupIngress:
+        - {IpProtocol: tcp, FromPort: 80, ToPort: 80, SourcePrefixListId: !Ref CloudFrontPrefixList}
+  DatabaseSecurity:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref Network
+      GroupDescription: PostgreSQL accessible only from assessment application instances
+      SecurityGroupIngress:
+        - {IpProtocol: tcp, FromPort: 5432, ToPort: 5432, SourceSecurityGroupId: !Ref AppSecurity}
+  DatabaseSubnets:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Private database subnets
+      SubnetIds: [!Ref PrivateSubnetA, !Ref PrivateSubnetB]
+  Database:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Engine: postgres
+      EngineVersion: !Ref DatabaseVersion
+      DBInstanceClass: db.t4g.micro
+      DBName: assessment
+      MasterUsername: assessment_app
+      ManageMasterUserPassword: true
+      AllocatedStorage: '20'
+      StorageType: gp3
+      StorageEncrypted: true
+      MultiAZ: false
+      PubliclyAccessible: false
+      DBSubnetGroupName: !Ref DatabaseSubnets
+      VPCSecurityGroups: [!Ref DatabaseSecurity]
+      BackupRetentionPeriod: 7
+      DeletionProtection: true
+      AutoMinorVersionUpgrade: true
+      Tags: [{Key: Project, Value: !Ref ApplicationName}]
+  OriginSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Description: CloudFront origin authentication for assessment application
+      GenerateSecretString: {PasswordLength: 32, ExcludePunctuation: true}
+  AppRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement: [{Effect: Allow, Principal: {Service: ec2.amazonaws.com}, Action: 'sts:AssumeRole'}]
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/AWSElasticBeanstalkWebTier
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Policies:
+        - PolicyName: AssessmentSecretsAndMail
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: ['secretsmanager:GetSecretValue']
+                Resource: [!GetAtt Database.MasterUserSecret.SecretArn, !Ref OriginSecret]
+              - Effect: Allow
+                Action: ['ses:SendEmail']
+                Resource: !Sub arn:${AWS::Partition}:ses:${AWS::Region}:${AWS::AccountId}:identity/${SenderEmail}
+                Condition: {StringEquals: {'ses:FromAddress': !Ref SenderEmail}}
+  AppProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties: {Roles: [!Ref AppRole]}
+  BeanstalkRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement: [{Effect: Allow, Principal: {Service: elasticbeanstalk.amazonaws.com}, Action: 'sts:AssumeRole'}]
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSElasticBeanstalkEnhancedHealth
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/AWSElasticBeanstalkManagedUpdatesCustomerRolePolicy
+  Application:
+    Type: AWS::ElasticBeanstalk::Application
+    Properties: {ApplicationName: !Ref ApplicationName, Description: Chinese assessment platform}
+  Release:
+    Type: AWS::ElasticBeanstalk::ApplicationVersion
+    Properties:
+      ApplicationName: !Ref Application
+      Description: !Ref VersionLabel
+      SourceBundle: {S3Bucket: !Ref BundleBucket, S3Key: !Ref BundleKey}
+  Environment:
+    Type: AWS::ElasticBeanstalk::Environment
+    DependsOn: [InternetRoute, PublicRouteAssociation]
+    Properties:
+      ApplicationName: !Ref Application
+      EnvironmentName: !Ref EnvironmentName
+      SolutionStackName: !Ref SolutionStack
+      VersionLabel: !Ref Release
+      OptionSettings:
+        - {Namespace: 'aws:elasticbeanstalk:environment', OptionName: EnvironmentType, Value: SingleInstance}
+        - {Namespace: 'aws:elasticbeanstalk:environment', OptionName: ServiceRole, Value: !GetAtt BeanstalkRole.Arn}
+        - {Namespace: 'aws:elasticbeanstalk:healthreporting:system', OptionName: SystemType, Value: enhanced}
+        - {Namespace: 'aws:autoscaling:launchconfiguration', OptionName: IamInstanceProfile, Value: !Ref AppProfile}
+        - {Namespace: 'aws:autoscaling:launchconfiguration', OptionName: SecurityGroups, Value: !Ref AppSecurity}
+        - {Namespace: 'aws:autoscaling:launchconfiguration', OptionName: RootVolumeType, Value: gp3}
+        - {Namespace: 'aws:autoscaling:launchconfiguration', OptionName: RootVolumeSize, Value: '10'}
+        - {Namespace: 'aws:ec2:instances', OptionName: InstanceTypes, Value: t3.small}
+        - {Namespace: 'aws:ec2:vpc', OptionName: VPCId, Value: !Ref Network}
+        - {Namespace: 'aws:ec2:vpc', OptionName: Subnets, Value: !Ref PublicSubnet}
+        - {Namespace: 'aws:ec2:vpc', OptionName: AssociatePublicIpAddress, Value: 'true'}
+        - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: SPRING_PROFILES_ACTIVE, Value: prod}
+        - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: APP_BASE_URL, Value: !Sub 'https://${PublicHostname}'}
+        - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: DATABASE_URL, Value: !Sub 'jdbc:postgresql://${Database.Endpoint.Address}:5432/assessment?sslmode=verify-full&sslrootcert=/var/app/current/global-bundle.pem'}
+        - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: DATABASE_USERNAME, Value: assessment_app}
+        - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: MAIL_MODE, Value: ses}
+        - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: SES_REGION, Value: !Ref 'AWS::Region'}
+        - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: MAIL_FROM, Value: !Ref SenderEmail}
+        - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: SMTP_HEALTH_ENABLED, Value: 'false'}
+        - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: JAVA_TOOL_OPTIONS, Value: '-XX:MaxRAMPercentage=55.0 -XX:+ExitOnOutOfMemoryError'}
+        - {Namespace: 'aws:elasticbeanstalk:application:environmentsecrets', OptionName: DATABASE_PASSWORD, Value: !Sub '${Database.MasterUserSecret.SecretArn}:password'}
+        - {Namespace: 'aws:elasticbeanstalk:application:environmentsecrets', OptionName: APP_ORIGIN_TOKEN, Value: !Ref OriginSecret}
+      Tags: [{Key: Project, Value: !Ref ApplicationName}]
+  HttpsDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: !Sub '${ApplicationName} authenticated HTTPS entry point'
+        HttpVersion: http2and3
+        IPV6Enabled: true
+        PriceClass: PriceClass_200
+        ViewerCertificate: {CloudFrontDefaultCertificate: true}
+        Origins:
+          - Id: assessment
+            DomainName: !GetAtt Environment.EndpointURL
+            CustomOriginConfig: {HTTPPort: 80, HTTPSPort: 443, OriginProtocolPolicy: http-only}
+            OriginCustomHeaders:
+              - {HeaderName: X-Origin-Token, HeaderValue: !Sub '{{resolve:secretsmanager:${OriginSecret}:SecretString}}'}
+              - {HeaderName: Forwarded, HeaderValue: !Sub 'proto=https;host=${PublicHostname}'}
+        DefaultCacheBehavior:
+          TargetOriginId: assessment
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD, OPTIONS, PUT, PATCH, POST, DELETE]
+          CachedMethods: [GET, HEAD]
+          CachePolicyId: 413f160e-6fd6-4c32-a3fc-03e47a2be39f
+          OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac
+          Compress: true
+        CustomErrorResponses:
+          - {ErrorCode: 403, ErrorCachingMinTTL: 0}
+          - {ErrorCode: 404, ErrorCachingMinTTL: 0}
+          - {ErrorCode: 500, ErrorCachingMinTTL: 0}
+          - {ErrorCode: 502, ErrorCachingMinTTL: 0}
+          - {ErrorCode: 503, ErrorCachingMinTTL: 0}
+Outputs:
+  PublicHostname: {Value: !GetAtt HttpsDistribution.DomainName}
+  PublicUrl: {Value: !Sub 'https://${HttpsDistribution.DomainName}'}
+  EnvironmentName: {Value: !Ref Environment}
+  OriginHostname: {Value: !GetAtt Environment.EndpointURL}
+  DatabaseIdentifier: {Value: !Ref Database}
+  DatabaseEndpoint: {Value: !GetAtt Database.Endpoint.Address}
+  AppInstanceRole: {Value: !Ref AppRole}

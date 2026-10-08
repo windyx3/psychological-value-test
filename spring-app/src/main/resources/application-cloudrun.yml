@@ -1,0 +1,17 @@
+# Activate together with prod: SPRING_PROFILES_ACTIVE=prod,cloudrun.
+# No persistent data is written to the container filesystem.
+spring:
+  datasource:
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 0
+      idle-timeout: 60000
+      keepalive-time: 0
+      connection-timeout: 30000
+  session:
+    jdbc:
+      cleanup-cron: '0 0 * * * *'
+management:
+  health:
+    mail:
+      enabled: ${SMTP_HEALTH_ENABLED:false}

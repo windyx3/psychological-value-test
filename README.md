@@ -8,7 +8,8 @@ The questionnaires support self-reflection. They are custom-authored examples, n
 
 - The new application lives in [`spring-app/`](spring-app/) on `feat/spring-boot-platform`.
 - It runs locally without Cloudflare, Docker, or a separately installed database.
-- PostgreSQL and AWS deployment configuration are provided. **This branch is not an AWS deployment.** No AWS resources, production database, or real email delivery are provisioned by cloning or running it.
+- The current trial runs on Google Cloud Run in Singapore, with Neon PostgreSQL 17 and Brevo SMTP. [Open the application](https://psychological-value-test-257955889460.asia-southeast1.run.app/) or [the admin dashboard](https://psychological-value-test-257955889460.asia-southeast1.run.app/admin/). Administrator access requires an authorized account.
+- Cloud health, database connectivity, SMTP connection/authentication and protected admin access have been checked. This does not certify real-recipient delivery, password-reset delivery or mainland-China reachability. Cloning this repository does not provision cloud resources or include production data.
 - The original Cloudflare Pages/Functions application remains in `public/`, `functions/`, and `migrations/`. Its `main` branch and deployment are separate from this version.
 - GitHub stores source code and documentation, not registered users, contact information, passwords, or submitted answers.
 
@@ -16,6 +17,7 @@ The questionnaires support self-reflection. They are custom-authored examples, n
 
 - Registration with username, email, WeChat contact, phone number, and password.
 - One-time email verification, password reset, and administrator-controlled account status.
+- Field-specific registration errors and page-based assessment creation/copying, compatible with embedded browsers that do not support `prompt()`.
 - Separate user and administrator experiences, enforced by server-side authorization.
 - Multiple independently saved assessments, draft editing, copying, publishing, and archiving.
 - An editor for question ordering, total/question score conditions, AND/OR groups, result priority, and one fallback result.
@@ -23,7 +25,7 @@ The questionnaires support self-reflection. They are custom-authored examples, n
 - Repeated submissions with immutable results and question-version history.
 - User-owned submission history and administrator filters by user, assessment, and date.
 - Optimistic draft conflict detection, server-side scoring, and idempotent submission retries.
-- Local email previews and optional SMTP delivery, including Amazon SES SMTP.
+- Local email previews and optional SMTP delivery, including Brevo or Amazon SES SMTP. An optional SES API mode can use an AWS instance role without SMTP keys.
 
 ## User roles
 
@@ -51,7 +53,7 @@ Registration always creates a regular user. Only the local initialization comman
 | Sessions | Spring Session JDBC, HttpOnly/SameSite cookies |
 | Persistence | Spring Data JPA, Flyway |
 | Local database | H2 file database |
-| Production database target | PostgreSQL 17 / Amazon RDS |
+| Production database | PostgreSQL 17 on Neon; Amazon RDS is an alternative |
 | Frontend | HTML, CSS, JavaScript ES modules; no frontend framework |
 | Build | Maven 3.9.11 via Maven Wrapper |
 | Tests | JUnit, MockMvc, real JDBC-backed sessions; optional Playwright smoke test |
@@ -62,11 +64,11 @@ Registration always creates a regular user. Only the local initialization comman
 ```mermaid
 flowchart LR
     Browser[Browser: Chinese user / admin UI] --> App[Spring Boot + Spring Security]
-    App --> Database[(H2 locally / PostgreSQL on AWS)]
-    App --> Mail[Local email preview / SMTP]
+    App --> Database[(H2 locally / Neon PostgreSQL in the current trial)]
+    App --> Mail[Local email preview / Brevo SMTP / optional SES]
     GitHub[GitHub source] --> CI[Tests and executable JAR]
-    CI -. Future manual deployment .-> AWS[Elastic Beanstalk Java SE]
-    AWS -. Production target .-> RDS[(Independent RDS PostgreSQL)]
+    GitHub -. Manual source deployment .-> CloudRun[Cloud Run container]
+    CloudRun --> App
 ```
 
 The application serves both frontend and API from the same origin. Browsers send answers, not trusted totals or grades. The server resolves the logged-in user and assigned version, validates every answer, calculates the result, and commits the submission atomically. User-facing APIs never return scoring conditions.
@@ -140,17 +142,21 @@ An example assessment is seeded on first local startup if the database contains 
 
 | Variable | Default / purpose |
 | --- | --- |
-| `SPRING_PROFILES_ACTIVE` | Unset uses `local`; `local,postgres` uses local PostgreSQL; `prod` enables production settings |
-| `PORT` | `8080`; Elastic Beanstalk's Procfile explicitly uses `5000` |
+| `SPRING_PROFILES_ACTIVE` | Unset uses `local`; `local,postgres` uses local PostgreSQL; `prod,cloudrun` is the current hosted target; `prod` supports the AWS alternative |
+| `PORT` | `8080`, supplied by Cloud Run; Elastic Beanstalk's Procfile explicitly uses `5000` |
 | `APP_BASE_URL` | `http://127.0.0.1:8080`; production must use your HTTPS origin |
 | `LOCAL_DB_PASSWORD` | Optional local H2 password |
 | `DATABASE_URL` | JDBC PostgreSQL URL; required in production |
 | `DATABASE_USERNAME` | Database login; required in production |
 | `DATABASE_PASSWORD` | Database password; required in production |
-| `MAIL_MODE` | `preview` locally; production forces `smtp` |
+| `MAIL_MODE` | `preview` locally; production defaults to `smtp`; optional `ses` uses the AWS SDK credential chain |
 | `MAIL_FROM` | Verified sending address for SMTP |
 | `SMTP_HOST`, `SMTP_PORT` | SMTP endpoint, default port `587` |
 | `SMTP_USERNAME`, `SMTP_PASSWORD` | SMTP authentication credentials |
+| `SES_REGION` | SES API region, default `us-east-2`; only needed for `MAIL_MODE=ses` |
+| `SMTP_HEALTH_ENABLED` | `false` for Cloud Run; `true` for other production profiles by default |
+| `SPRING_MAIL_TEST_CONNECTION` | Optional SMTP startup check; enabled in the current trial, not a recipient-delivery test |
+| `APP_ORIGIN_TOKEN` | Optional trusted-proxy origin token for the AWS alternative; leave unset for direct Cloud Run access |
 | `SEED_DEFAULT` | `true` locally; production defaults to no sample data |
 
 See [`spring-app/.env.example`](spring-app/.env.example). Spring Boot does not automatically read a `.env` file: set application variables in your shell or hosting environment. Docker Compose reads `.env` for its database container only.
@@ -259,9 +265,15 @@ The suite covers score boundaries, AND/OR rules, fallback priority, server valid
 
 To run against an **empty disposable PostgreSQL test database**, set `TEST_DATABASE_URL`, `TEST_DATABASE_USERNAME`, and `TEST_DATABASE_PASSWORD` before running the same command. The integration suite deletes its test records between scenarios; never point it at your application or production database. GitHub Actions creates a disposable PostgreSQL 17 service and tests both backends.
 
-For optional browser QA, see [browser testing](docs/BROWSER_TESTING.md). The fixture runs on port 8081 with synthetic in-memory data and is excluded from the packaged application. The smoke test exercises real registration, local email activation, editor preview, assignment, user submission, historical answers, and responsive layouts.
+For optional browser QA, see [browser testing](docs/BROWSER_TESTING.md). The fixture runs on port 8081 with synthetic in-memory data and is excluded from the packaged application. The smoke test exercises registration feedback, local email activation, assessment creation/copy/cancel/retry without native prompts, editor preview, assignment, submission, historical answers, and mobile/tablet/desktop layouts.
 
-## AWS deployment
+## Cloud Run deployment (selected trial target)
+
+See the [Cloud Run + Neon + Brevo guide](docs/CLOUD_RUN_DEPLOYMENT.md) for the non-root container, PostgreSQL connection settings, SMTP delivery, Secret Manager, administrator initialization and cloud acceptance checklist. Use `SPRING_PROFILES_ACTIVE=prod,cloudrun`; local startup remains unchanged.
+
+This is a free-tier-first trial target, **not a guarantee of a permanent zero bill**. Google Cloud requires a billing/trial account, and usage outside the applicable allowances can incur charges. The deployed trial uses request-based billing, minimum zero instances and maximum one instance. Mainland-China access and real-recipient activation/reset tests remain acceptance requirements. GitHub Actions builds and tests only; pushing this branch does not redeploy Cloud Run.
+
+## AWS deployment (alternative)
 
 See the complete [AWS deployment guide](docs/AWS_DEPLOYMENT.md) for Elastic Beanstalk Java SE, an independent RDS PostgreSQL database, HTTPS, SMTP, environment variables, backups, releases, and rollback. The CI workflow builds and tests; it does not provision or deploy AWS resources.
 
@@ -281,7 +293,9 @@ The old application did not save user answers, so there are no old answer record
 | First build cannot download dependencies | Allow HTTPS access to Maven Central; configure your organization's Maven proxy if applicable |
 | H2 file already in use | Stop the running app before bootstrap/import; use the same working directory |
 | Bootstrap requests an interactive terminal | Run the packaged JAR directly; do not pipe the password or run the command through Maven |
+| Cloud administrator helper reports PowerShell 5.1 | Run `Initialize-CloudAdmin.ps1` using PowerShell 7 (`pwsh`), not Windows PowerShell 5.1 |
 | User sees no assessments | Verify email, enable the account, and assign a published version |
+| Assignment dropdown is empty | Create and publish an unarchived assessment first; saving a draft is not publishing |
 | No real email arrives locally | Preview mode deliberately does not send email; open `/dev/mailbox` |
 | SMTP fails | Check credentials, STARTTLS, sender verification, and provider sandbox limits |
 | Draft save returns 409 | Another editor changed the revision; reload and reapply your changes |
@@ -297,7 +311,7 @@ The old application did not save user answers, so there are no old answer record
 - Bounded editor inputs: up to 200 questions, 30 results, 30 groups per result, and 100 conditions per group; bulk assignment accepts up to 200 users per request.
 - Authentication throttling is per application process. The documented first deployment uses one application instance; a scaled deployment should use a shared limiter.
 - The application stores sensitive contact details and self-reported answers. Only synthetic fixtures belong in this repository; configure database backups and restricted access for a real deployment.
-- AWS deployment and real SMTP delivery require a separately configured environment and a live verification pass.
+- AWS remains an undeployed alternative. SMTP connection/authentication passed in the Cloud Run trial; full recipient-delivery and password-recovery acceptance still require explicit verification.
 
 ## Repository layout
 
@@ -307,8 +321,8 @@ spring-app/             Spring Boot application, Maven Wrapper and optional loca
   src/main/resources/   Database migrations, profiles and frontend assets
   src/test/java/        Rule, integration and isolated browser-fixture code
   scripts/              Browser smoke runner
-  deploy/               Elastic Beanstalk startup configuration
+  deploy/               Cloud administrator helper and alternative Beanstalk startup/template
 .github/workflows/      H2/PostgreSQL CI builds
-docs/                   AWS, migration and browser-testing guides
+docs/                   Cloud Run, alternative AWS, migration and browser-testing guides
 public/, functions/     Preserved legacy Cloudflare application
 ```

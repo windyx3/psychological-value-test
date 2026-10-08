@@ -34,6 +34,16 @@ Download the RDS certificate bundle from the official [RDS certificate documenta
 
 Do not include `.env`, a local H2 file, logs, email previews, answer exports, AWS credentials, or test fixtures in the bundle.
 
+On Windows, the checked-in packaging script creates this exact allowlisted ZIP and its SHA-256 checksum after a successful build:
+
+```powershell
+.\deploy\Build-BeanstalkBundle.ps1
+```
+
+The output is `spring-app/target/beanstalk/assessment-platform.zip`. It downloads the public AWS RDS CA bundle and includes neither local user data nor credentials. Creating the ZIP does not create AWS resources.
+
+Confirm that the chosen AWS account permits every required service in the selected region before creating an environment. An Organizations service control policy can explicitly deny a region even when the login role is named `AccountFullAccessRole`; IAM role permissions cannot override that deny. Choose a permitted account/region instead of attempting to change the organization's policy.
+
 ## 2. Create the database independently
 
 Create RDS outside the Elastic Beanstalk environment rather than selecting a database whose lifecycle is tied to that environment. Keep it in private subnets with public accessibility disabled. Permit port 5432 only from the application's security group and an explicitly authorized migration/administration path.
@@ -59,17 +69,21 @@ SMTP_PASSWORD=<SMTP password>
 MAIL_FROM=<verified sender address>
 ```
 
-The JDBC URL is a `jdbc:postgresql://` URL, not a `postgres://` URL. Do not put database credentials in the URL. Production disables sample-data seeding and forces SMTP. It refuses localhost mail-preview profiles and requires an HTTPS base URL.
+The JDBC URL is a `jdbc:postgresql://` URL, not a `postgres://` URL. Do not put database credentials in the URL. Production disables sample-data seeding and defaults to SMTP; the optional `MAIL_MODE=ses` API transport uses the AWS credential chain. Production refuses localhost mail-preview profiles and requires an HTTPS base URL.
 
 Terminate TLS at a trusted load balancer/reverse proxy, redirect HTTP to HTTPS, and keep the application instance accessible only through that proxy. The app honors forwarded headers in production, so the proxy must replace untrusted incoming forwarded headers. Production session cookies are `Secure`, `HttpOnly`, and `SameSite=Lax`.
 
-Configure the environment health check as `/actuator/health`. Health details are not exposed publicly. SMTP is included in production health checks, so configure real SMTP before declaring the environment healthy.
+Configure the environment health check as `/actuator/health`. Health details are not exposed publicly. SMTP is included in this production profile's health checks by default; disable it with `SMTP_HEALTH_ENABLED=false` when using the SES API transport. Configure and test the selected mail transport before declaring email delivery healthy.
 
 ## 4. Configure email delivery
 
 Verify the sending identity with the chosen provider. For SES, follow the [SES production-access process](https://docs.aws.amazon.com/ses/latest/dg/request-production-access.html) before inviting arbitrary public users. Sandbox delivery restrictions are different from this application's own end-user verification process.
 
 Use SES **SMTP credentials**, not an AWS access key pasted into the SMTP password field. Allow outbound access to port 587. Test registration, activation, expired links, resending, and password reset with a controlled real mailbox before opening registration broadly.
+
+An email address identity requires the mailbox owner to click AWS's confirmation link. SES sandbox status is regional: successful delivery to a verified test mailbox does not establish that new public registrants can receive mail. Request production sending access for the SES region and confirm approval before opening public registration. No mailbox password is required to verify a sender identity.
+
+If no custom domain is available, plan an HTTPS entry point using a CloudFront-provided hostname before deploying the production profile. The Beanstalk-provided hostname alone is not an HTTPS certificate for your application. CloudFront must forward session cookies, query strings and CSRF headers, allow the required HTTP methods, and disable caching for authenticated pages/APIs. Restrict origin access to the trusted proxy and preserve the original HTTPS scheme; test registration and login through the HTTPS entry point.
 
 ## 5. Initialize and release
 

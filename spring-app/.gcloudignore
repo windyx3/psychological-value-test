@@ -1,0 +1,11 @@
+# Source deployments must not upload local databases, credential caches or mail previews.
+**
+!Dockerfile
+!.dockerignore
+!.gcloudignore
+!pom.xml
+!mvnw
+!.mvn/
+!.mvn/**
+!src/
+!src/**
